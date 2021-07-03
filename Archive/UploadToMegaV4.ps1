@@ -1,7 +1,7 @@
 ﻿<#
 This script will take a file or folder path and upload it to mega, encode the link, and then put it into a persistent file.
 Author: Disk546
-Last modified 4/14/20
+Last modified 4/18/20
 
 In order for this to work you need to first install megaCMD. You can get it here https://mega.nz/cmd
 This has only been tested on Windows thus far. It may work on Linux but I haven't tried it.
@@ -30,6 +30,11 @@ Sometimes the loop that shows the progress won't end and just loop forever. The 
 
 #################################################################
 # Detect the OS and try to set the environment variables for MEGAcmd.
+# This is a little workaround for PowerShell < 6, which still ships with Windows...
+# Linux and macOS have PowerShell 6+ by default when installed from Microsoft's site
+if ( ($PSVersionTable.PSVersion.Major -lt 6) -And !([string]::IsNullOrEmpty($env:OS)) -And ([string]::IsNullOrEmpty($IsWindows)) ) {
+    $IsWindows = $True
+}
 if ($IsWindows) {
     $MEGApath = "$env:LOCALAPPDATA\MEGAcmd"
     $OS = "Windows"
@@ -88,11 +93,9 @@ else
 {
     Write-host "MegaCMD already running" -ForegroundColor  green
 }
-
 #################################################################
 #This will test to see if a user is logged in and if not prompt them to log in
 $testLogin = mega-whoami
-
 if ($testLogin -like '*Not logged in.*')
 {
     Write-Host "User not logged in, prompting for credentials" -ForegroundColor Yellow
@@ -100,13 +103,11 @@ if ($testLogin -like '*Not logged in.*')
 
     mega-login $creds.UserName $creds.GetNetworkCredential().Password 
 }
-
 #################################################################
 #Display who the current user is and set the email as a variable for later
 $UserEmailPre = mega-whoami
 Write-Host $UserEmailPre
 $userEmail = $UserEmailPre.Split(" ",3)[2]
-
 #################################################################
 #Display current free space
 mega-df
@@ -137,14 +138,11 @@ While (![string]::IsNullOrEmpty($isMegaEmpty))
 $FileName = Split-Path -Path $Filepath -Leaf
 $ExportedLink = mega-export -a -f  $FileName
 $ShortLink = $ExportedLink.Split(":",2)[1]    
-
 #Next, we need to encode it.
 $sEncodedString=[Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($ShortLink))
 Write-Host $sEncodedString
-
 #Next, we are going to check and see if the destination folder exists and if not create it
 $FolderPath = $HOME + $PathSeparator + "Documents" + $PathSeparator + "EncodedMegaTxts"
-
 if (!(Test-Path $FolderPath))
 {
     Write-Host "Encoded text file location does not exist creating it at "  $FolderPath
